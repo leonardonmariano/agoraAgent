@@ -1,0 +1,1 @@
+-- Fase 2 — DDL das tabelas do ÁGORA
