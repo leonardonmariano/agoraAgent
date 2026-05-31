@@ -1,93 +1,105 @@
-# ÁGORA — Agente de Inteligência em Segurança Pública
+# AGORA - Agente de Inteligencia em Seguranca Publica
 
-Agente de IA que automatiza a lavratura de Boletins de Ocorrência e gera inteligência operacional a partir da base de BOs.
+Aplicacao academica em Python/Streamlit para lavratura assistida de Boletins de Ocorrencia e geracao de inteligencia operacional sobre uma base de BOs.
 
-## Pré-requisitos
+## O que funciona
+
+- Interface Streamlit com tres abas: lavrar BO, consultar inteligencia e relatorio executivo.
+- Geracao de BO com OpenAI quando `OPENAI_API_KEY` esta configurada.
+- Fallback local por heuristicas quando a chave da OpenAI nao existe, permitindo demonstracao offline.
+- Persistencia no Supabase via API REST.
+- Scripts para testar setup, limpar banco e popular dados sinteticos.
+- Testes automatizados sem dependencia de rede.
+
+## Pre-requisitos
 
 - Python 3.11+
-- Conta na [OpenAI](https://platform.openai.com) com chave de API
-- Conta no [Supabase](https://supabase.com) com projeto criado
+- Conta OpenAI, opcional para uso com IA real
+- Projeto Supabase, necessario para salvar, consultar e gerar relatorios com dados reais
 
-## Setup
+## Como executar localmente
 
-### 1. Clone e crie o ambiente virtual
+```powershell
+cd "C:\caminho\para\boletinFaculdade\agora"
 
-```bash
-git clone <repo>
-cd agora
 python -m venv .venv
+.\.venv\Scripts\Activate.ps1
 
-# Windows
-.venv\Scripts\activate
-
-# Linux/macOS
-source .venv/bin/activate
-```
-
-### 2. Instale as dependências
-
-```bash
 pip install -r requirements.txt
+streamlit run app\streamlit_app.py
 ```
 
-### 3. Configure as variáveis de ambiente
+Acesse:
 
-```bash
-cp .env.example .env
+```text
+http://localhost:8501
 ```
 
-Edite o `.env` com suas chaves:
+## Configuracao do .env
 
-| Variável | Onde obter |
-|---|---|
-| `OPENAI_API_KEY` | [platform.openai.com/api-keys](https://platform.openai.com/api-keys) |
-| `SUPABASE_URL` | Dashboard do projeto → Settings → API → Project URL |
-| `SUPABASE_KEY` | Dashboard do projeto → Settings → API → anon public |
-
-### 4. Configure o banco de dados
-
-No Dashboard do Supabase, vá em **SQL Editor → New Query**, cole o conteúdo de `db/schema.sql` e clique em **Run**.
-
-### 5. Teste o setup
-
-```bash
-python scripts/teste_setup.py
+```powershell
+Copy-Item .env.example .env
+notepad .env
 ```
 
-Deve imprimir `✅ Setup OK`.
+Preencha:
 
-### 6. Popule o banco com dados sintéticos
+```env
+OPENAI_API_KEY=sua_chave_openai
+MODELO_GERAL=gpt-4o-mini
+MODELO_GERACAO_BO=gpt-4o
+TEMPERATURA_GERAL=0.3
+TEMPERATURA_GERACAO=0.4
 
-```bash
-python scripts/seed_bos.py --quantidade 150
+SUPABASE_URL=https://seu-projeto.supabase.co
+SUPABASE_KEY=sua_anon_public_key
 ```
 
-### 7. Rode a aplicação
+Sem `OPENAI_API_KEY`, a geracao de BO continua funcionando com fallback local. Sem Supabase, a interface abre, mas salvar, consultar dados reais e gerar relatorios reais dependem do banco configurado.
 
-```bash
-streamlit run app/streamlit_app.py
+## Configurar o Supabase
+
+1. Abra o dashboard do Supabase.
+2. Entre em SQL Editor.
+3. Crie uma nova query.
+4. Cole todo o conteudo de `db/schema.sql`.
+5. Execute.
+
+O schema cria as tabelas `boletins`, `partes` e `objetos`, indices e policies para uso com a anon key em contexto academico.
+
+## Comandos uteis
+
+Testar OpenAI e Supabase:
+
+```powershell
+python scripts\teste_setup.py
 ```
 
-## Estrutura do Projeto
+Popular o banco:
 
-```
-agora/
-├── agente/          # Núcleo do agente ReAct e ferramentas LangChain
-├── prompts/         # Templates de prompt (Role, Few-shot, CoT, CoVe, Step Back, Least-to-Most)
-├── db/              # Schema SQL, conexão e repositório Supabase
-├── app/             # Interface Streamlit
-├── scripts/         # Utilitários (seed, reset, teste)
-└── tests/           # Casos de teste
+```powershell
+python scripts\seed_bos.py --quantidade 150
 ```
 
-## Técnicas de Prompt Utilizadas
+Limpar o banco:
 
-| Técnica | Arquivo | Propósito |
-|---|---|---|
-| Role Prompt | `prompts/sistema.py` | Identidade e tom do ÁGORA |
-| Few-shot | `prompts/gerar_bo.py` | Exemplos de resumo→BO |
-| Chain of Thought | `prompts/gerar_bo.py` | Classificação penal passo a passo |
-| Chain of Verification | `prompts/validar_bo.py` | Checklist de completude do BO |
-| Step Back | `prompts/consultar_base.py` | NL→SQL com reflexão prévia |
-| Least-to-Most | `prompts/gerar_relatorio.py` | Decomposição de relatórios executivos |
-| ReAct | `agente/nucleo.py` | Orquestração com LangChain |
+```powershell
+python scripts\reset_db.py
+```
+
+Rodar testes:
+
+```powershell
+python -m pytest -q
+```
+
+## Estrutura
+
+```text
+agente/   ferramentas do agente e orquestrador simples
+app/      interface Streamlit
+db/       schema SQL e repositorio REST para Supabase
+prompts/  espaco para prompts academicos
+scripts/  utilitarios de setup, seed e reset
+tests/    testes automatizados
+```

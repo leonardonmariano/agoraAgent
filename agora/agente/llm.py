@@ -1,8 +1,9 @@
-"""Wrapper centralizado para chamadas à OpenAI."""
+"""Wrapper centralizado para chamadas a OpenAI."""
 
 import logging
 import os
 
+import httpx
 from dotenv import load_dotenv
 from openai import OpenAI
 
@@ -10,7 +11,7 @@ load_dotenv()
 
 logger = logging.getLogger(__name__)
 
-_cliente = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+_cliente: OpenAI | None = None
 
 _MODELO_GERAL = os.getenv("MODELO_GERAL", "gpt-4o-mini")
 _MODELO_GERACAO_BO = os.getenv("MODELO_GERACAO_BO", "gpt-4o")
@@ -35,6 +36,15 @@ def chamar_modelo(
     Returns:
         Texto gerado pelo modelo.
     """
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        raise ValueError("OPENAI_API_KEY precisa estar definido no .env")
+
+    global _cliente
+    if _cliente is None:
+        verify_ssl = os.getenv("HTTPX_VERIFY_SSL", "true").lower() not in {"0", "false", "no"}
+        _cliente = OpenAI(api_key=api_key, http_client=httpx.Client(verify=verify_ssl))
+
     modelo_efetivo = modelo or _MODELO_GERAL
     temperatura_efetiva = temperatura if temperatura is not None else _TEMPERATURA_GERAL
 
