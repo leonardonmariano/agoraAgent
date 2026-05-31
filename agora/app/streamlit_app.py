@@ -162,13 +162,14 @@ def _sidebar() -> tuple[str, bool]:
             from db.repositorio import contar_bos
             total = contar_bos()
             st.metric(t("total_bos", idioma), total)
-        except Exception:
+        except Exception as exc:
             col_a, col_b = st.columns(2)
             with col_a:
                 st.metric(t("total_bos", idioma), "150")
             with col_b:
                 st.metric(t("ultima_atualizacao", idioma), "—")
             st.caption("⚠️ " + t("banco_desconectado", idioma))
+            st.sidebar.error(str(exc))
 
     return idioma, mostrar_logs
 

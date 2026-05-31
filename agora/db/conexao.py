@@ -1,4 +1,8 @@
-"""Cliente REST simples para Supabase inicializado a partir do .env."""
+"""Cliente REST simples para Supabase.
+
+Em producao no Streamlit Cloud, as credenciais podem vir de st.secrets. Em
+desenvolvimento local, elas sao lidas de variaveis de ambiente/.env.
+"""
 
 import os
 from typing import Any
@@ -8,14 +12,32 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-_URL = os.getenv("SUPABASE_URL", "")
-_KEY = os.getenv("SUPABASE_KEY", "")
+
+def _ler_streamlit_secret(nome: str) -> str:
+    """Le uma chave de st.secrets quando o codigo roda dentro do Streamlit."""
+    try:
+        import streamlit as st
+
+        valor = st.secrets.get(nome)
+        if valor is None and "supabase" in st.secrets:
+            valor = st.secrets["supabase"].get(nome)
+        return str(valor or "")
+    except Exception:
+        return ""
+
+
+def _config(nome: str, padrao: str = "") -> str:
+    return _ler_streamlit_secret(nome) or os.getenv(nome, padrao)
 
 
 def _credenciais() -> tuple[str, str]:
-    if not _URL or not _KEY:
-        raise ValueError("SUPABASE_URL e SUPABASE_KEY precisam estar definidos no .env")
-    return _URL.rstrip("/"), _KEY
+    url = _config("SUPABASE_URL")
+    key = _config("SUPABASE_KEY")
+    if not url or not key:
+        raise ValueError(
+            "SUPABASE_URL e SUPABASE_KEY precisam estar definidos em st.secrets ou no .env"
+        )
+    return url.rstrip("/"), key
 
 
 def headers(prefer: str | None = None) -> dict[str, str]:
@@ -45,7 +67,7 @@ def request(
     timeout: int = 20,
 ) -> httpx.Response:
     """Executa uma chamada REST ao Supabase e valida status HTTP."""
-    verify_ssl = os.getenv("HTTPX_VERIFY_SSL", "true").lower() not in {"0", "false", "no"}
+    verify_ssl = _config("HTTPX_VERIFY_SSL", "true").lower() not in {"0", "false", "no"}
     resposta = httpx.request(
         metodo,
         rest_url(tabela),

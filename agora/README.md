@@ -57,6 +57,19 @@ SUPABASE_KEY=sua_anon_public_key
 
 Sem `OPENAI_API_KEY`, a geracao de BO continua funcionando com fallback local. Sem Supabase, a interface abre, mas salvar, consultar dados reais e gerar relatorios reais dependem do banco configurado.
 
+No Streamlit Cloud, configure as mesmas chaves em **Settings > Secrets**:
+
+```toml
+OPENAI_API_KEY = "sua_chave_openai"
+SUPABASE_URL = "https://seu-projeto.supabase.co"
+SUPABASE_KEY = "sua_anon_public_key"
+MODELO_GERAL = "gpt-4o-mini"
+MODELO_GERACAO_BO = "gpt-4o"
+TEMPERATURA_GERAL = "0.3"
+TEMPERATURA_GERACAO = "0.4"
+HTTPX_VERIFY_SSL = "true"
+```
+
 ## Configurar o Supabase
 
 1. Abra o dashboard do Supabase.
