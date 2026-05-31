@@ -1,6 +1,8 @@
 """Interface principal do ÁGORA — entrada do Streamlit."""
 
+import logging
 import sys
+from datetime import datetime
 from pathlib import Path
 
 import streamlit as st
@@ -18,6 +20,18 @@ st.set_page_config(
 
 from app.componentes import exibir_bo, exibir_passos_agente
 from app.i18n import t
+
+logger = logging.getLogger(__name__)
+
+
+def _formatar_data_hora(valor: str | None) -> str:
+    if not valor:
+        return "Não informado"
+    try:
+        dt = datetime.fromisoformat(valor.replace("Z", "+00:00"))
+        return dt.strftime("%d/%m/%Y %H:%M")
+    except ValueError:
+        return valor
 
 # ── Dados de demonstração ────────────────────────────────────────────────────
 
@@ -153,30 +167,34 @@ aumento de 12% em relação ao mês anterior.
 def _sidebar() -> tuple[str, bool]:
     with st.sidebar:
         st.markdown("# 🏛️ ÁGORA")
-        st.caption("Inteligência em Segurança Pública")
+        st.caption("Lavratura assistida e inteligência operacional")
         st.divider()
 
         idioma_label = st.selectbox("Idioma / Language", ["Português", "English"])
         idioma = "pt" if idioma_label == "Português" else "en"
 
-        mostrar_logs = st.toggle(t("mostrar_logs", idioma), value=True)
+        mostrar_logs = st.toggle(t("mostrar_logs", idioma), value=False)
 
         st.divider()
-        st.markdown("**Base de dados**")
+        st.markdown("**Base operacional**")
 
-        # Tenta buscar estatísticas reais; cai para demo se banco não estiver configurado
+        # Exibe apenas estatísticas reais da base configurada.
         try:
-            from db.repositorio import contar_bos
+            from db.repositorio import contar_bos, ultima_atualizacao
             total = contar_bos()
-            st.metric(t("total_bos", idioma), total)
-        except Exception as exc:
             col_a, col_b = st.columns(2)
             with col_a:
-                st.metric(t("total_bos", idioma), "150")
+                st.metric(t("total_bos", idioma), total)
             with col_b:
-                st.metric(t("ultima_atualizacao", idioma), "—")
+                st.metric(t("ultima_atualizacao", idioma), _formatar_data_hora(ultima_atualizacao()))
+        except Exception:
+            logger.exception("Falha ao carregar estatisticas do Supabase.")
+            col_a, col_b = st.columns(2)
+            with col_a:
+                st.metric(t("total_bos", idioma), "Não informado")
+            with col_b:
+                st.metric(t("ultima_atualizacao", idioma), "Não informado")
             st.caption("⚠️ " + t("banco_desconectado", idioma))
-            st.sidebar.error(str(exc))
 
     return idioma, mostrar_logs
 
@@ -184,8 +202,8 @@ def _sidebar() -> tuple[str, bool]:
 # ── Aba 1: Lavrar BO ─────────────────────────────────────────────────────────
 
 def _aba_lavrar(idioma: str, mostrar_logs: bool) -> None:
-    st.markdown("### Lavrar Boletim de Ocorrência")
-    st.caption("Cole ou digite abaixo as notas livres do atendimento. O ÁGORA estrutura automaticamente.")
+    st.markdown("### Lavrar boletim de ocorrência")
+    st.caption("Registre as notas do atendimento para estruturar narrativa, classificação, partes e objetos.")
 
     resumo = st.text_area(
         t("resumo_label", idioma),
@@ -198,7 +216,7 @@ def _aba_lavrar(idioma: str, mostrar_logs: bool) -> None:
     with col_btn:
         gerar = st.button(t("btn_gerar_bo", idioma), type="primary", use_container_width=True)
     with col_demo:
-        demo = st.button("Ver exemplo (demo)", use_container_width=True)
+        demo = st.button("Carregar exemplo", use_container_width=True)
 
     if demo:
         st.session_state["bo_gerado"] = _BO_DEMO
@@ -214,8 +232,9 @@ def _aba_lavrar(idioma: str, mostrar_logs: bool) -> None:
                     resultado = gerar_bo(resumo)
                     st.session_state["bo_gerado"] = resultado
                     st.session_state["passos_gerado"] = resultado.get("passos", [])
-                except Exception as exc:
-                    st.error(f"{t('erro_generico', idioma)}\n\n`{exc}`")
+                except Exception:
+                    logger.exception("Falha inesperada ao gerar BO.")
+                    st.error(t("erro_generico", idioma))
 
     bo = st.session_state.get("bo_gerado")
     if bo:
@@ -223,7 +242,7 @@ def _aba_lavrar(idioma: str, mostrar_logs: bool) -> None:
         exibir_bo(bo, idioma)
 
         with st.expander(t("ver_raciocinio", idioma)):
-            st.markdown(bo.get("raciocinio_cot", "—"))
+            st.markdown(bo.get("raciocinio_cot") or "Não informado")
 
         if mostrar_logs:
             with st.expander(t("ver_passos_agente", idioma)):
@@ -236,8 +255,9 @@ def _aba_lavrar(idioma: str, mostrar_logs: bool) -> None:
                 numero = salvar_bo(bo)
                 st.success(f"{t('bo_salvo', idioma)} — Nº {numero}")
                 st.session_state.pop("bo_gerado", None)
-            except Exception as exc:
-                st.error(f"{t('erro_supabase', idioma)}\n\n`{exc}`")
+            except Exception:
+                logger.exception("Falha ao salvar BO.")
+                st.error(t("erro_supabase", idioma))
 
 
 # ── Aba 2: Consultar ─────────────────────────────────────────────────────────
@@ -259,8 +279,8 @@ _SUGESTOES = {
 
 
 def _aba_consultar(idioma: str, mostrar_logs: bool) -> None:
-    st.markdown("### Consultar Inteligência Operacional")
-    st.caption("Faça perguntas sobre a base de BOs em linguagem natural.")
+    st.markdown("### Consultar inteligência operacional")
+    st.caption("Faça perguntas sobre a base de BOs para identificar padrões, concentrações e comparativos.")
 
     st.markdown(f"**{t('sugestoes_titulo', idioma)}**")
     sugestoes = _SUGESTOES.get(idioma, _SUGESTOES["pt"])
@@ -279,7 +299,7 @@ def _aba_consultar(idioma: str, mostrar_logs: bool) -> None:
     with col_btn2:
         consultar = st.button(t("btn_consultar", idioma), type="primary", use_container_width=True)
     with col_demo2:
-        demo2 = st.button("Ver exemplo (demo)", key="demo_consulta", use_container_width=True)
+        demo2 = st.button("Carregar exemplo", key="demo_consulta", use_container_width=True)
 
     if demo2:
         st.session_state["resultado_consulta"] = _CONSULTA_DEMO
@@ -293,8 +313,9 @@ def _aba_consultar(idioma: str, mostrar_logs: bool) -> None:
                     from agente.ferramentas import consultar_base
                     resultado = consultar_base(pergunta)
                     st.session_state["resultado_consulta"] = resultado
-                except Exception as exc:
-                    st.error(f"{t('erro_generico', idioma)}\n\n`{exc}`")
+                except Exception:
+                    logger.exception("Falha ao consultar base.")
+                    st.error(t("erro_generico", idioma))
 
     resultado = st.session_state.get("resultado_consulta")
     if resultado:
@@ -302,7 +323,7 @@ def _aba_consultar(idioma: str, mostrar_logs: bool) -> None:
         st.info(resultado.get("resposta_natural", t("sem_resultados", idioma)))
 
         with st.expander(t("ver_sql", idioma)):
-            st.code(resultado.get("sql_gerado", "—"), language="sql")
+            st.code(resultado.get("sql_gerado") or "Não informado", language="sql")
 
         dados = resultado.get("resultados", [])
         if dados:
@@ -317,8 +338,8 @@ def _aba_consultar(idioma: str, mostrar_logs: bool) -> None:
 # ── Aba 3: Relatório ─────────────────────────────────────────────────────────
 
 def _aba_relatorio(idioma: str) -> None:
-    st.markdown("### Relatório Executivo de Criminalidade")
-    st.caption("Gera relatório analítico a partir dos BOs registrados, usando decomposição em sub-tarefas (Least-to-Most).")
+    st.markdown("### Relatório executivo de criminalidade")
+    st.caption("Gere uma síntese objetiva da base para apoiar priorização, planejamento e apresentação dos achados.")
 
     col1, col2 = st.columns(2)
     with col1:
@@ -330,7 +351,7 @@ def _aba_relatorio(idioma: str) -> None:
     with col_btn3:
         gerar_rel = st.button(t("btn_gerar_relatorio", idioma), type="primary", use_container_width=True)
     with col_demo3:
-        demo3 = st.button("Ver exemplo (demo)", key="demo_relatorio", use_container_width=True)
+        demo3 = st.button("Carregar exemplo", key="demo_relatorio", use_container_width=True)
 
     if demo3:
         st.session_state["relatorio_gerado"] = _RELATORIO_DEMO
@@ -341,8 +362,9 @@ def _aba_relatorio(idioma: str) -> None:
                 from agente.ferramentas import gerar_relatorio
                 resultado = gerar_relatorio(cidade, periodo)
                 st.session_state["relatorio_gerado"] = resultado.get("relatorio_markdown", "")
-            except Exception as exc:
-                st.error(f"{t('erro_generico', idioma)}\n\n`{exc}`")
+            except Exception:
+                logger.exception("Falha ao gerar relatorio.")
+                st.error(t("erro_generico", idioma))
 
     relatorio = st.session_state.get("relatorio_gerado")
     if relatorio:

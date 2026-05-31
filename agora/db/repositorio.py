@@ -101,6 +101,15 @@ def contar_bos() -> int:
     return int(resposta.get("count") or 0)
 
 
+def ultima_atualizacao() -> str | None:
+    """Retorna o timestamp do boletim salvo mais recentemente."""
+    resposta = db_select_boletins(limite=1)
+    dados = resposta.get("data") or []
+    if not dados:
+        return None
+    return dados[0].get("criado_em")
+
+
 def db_select_boletins(limite: int = 1000, contar: bool = False) -> dict[str, Any]:
     prefer = "count=exact" if contar else None
     resposta = request(

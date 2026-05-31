@@ -33,7 +33,13 @@ def chamar_modelo(
 
     global _cliente
     if _cliente is None:
-        _cliente = OpenAI(api_key=api_key)
+        verify_ssl = config("HTTPX_VERIFY_SSL", "true").lower() not in {"0", "false", "no"}
+        if verify_ssl:
+            _cliente = OpenAI(api_key=api_key)
+        else:
+            import httpx
+
+            _cliente = OpenAI(api_key=api_key, http_client=httpx.Client(verify=False))
 
     modelo_efetivo = modelo or config("MODELO_GERAL", "gpt-4o-mini")
     temperatura_padrao = float(config("TEMPERATURA_GERAL", "0.3"))

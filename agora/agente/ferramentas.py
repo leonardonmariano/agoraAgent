@@ -8,7 +8,7 @@ o projeto continue demonstravel em sala de aula sem rede ou sem credito de API.
 from __future__ import annotations
 
 import json
-import os
+import logging
 import re
 from collections import Counter
 from datetime import date, datetime, timedelta
@@ -16,6 +16,8 @@ from typing import Any
 
 from agente.llm import chamar_modelo, chamar_modelo_geracao
 from config import config
+
+logger = logging.getLogger(__name__)
 
 
 def _tem_openai() -> bool:
@@ -44,9 +46,9 @@ def _normalizar_bo(bo: dict[str, Any]) -> dict[str, Any]:
     passos = bo.get("passos") if isinstance(bo.get("passos"), list) else []
 
     return {
-        "tipo_penal": bo.get("tipo_penal") or "Nao classificado",
+        "tipo_penal": bo.get("tipo_penal") or "Não informado",
         "artigo_penal": bo.get("artigo_penal"),
-        "data_fato": bo.get("data_fato") or date.today().isoformat(),
+        "data_fato": bo.get("data_fato"),
         "hora_fato": bo.get("hora_fato"),
         "cidade": bo.get("cidade"),
         "uf": bo.get("uf"),
@@ -77,7 +79,7 @@ def _classificar_tipo(texto: str) -> tuple[str, str]:
         return "Lesao corporal", "Art. 129 do CP"
     if any(p in t for p in ["ameac", "prometeu matar", "intimid"]):
         return "Ameaca", "Art. 147 do CP"
-    return "Fato atipico ou a classificar", None
+    return "Fato atípico ou a classificar", None
 
 
 def _extrair_objetos(texto: str) -> list[dict[str, str]]:
@@ -88,7 +90,7 @@ def _extrair_objetos(texto: str) -> list[dict[str, str]]:
         "carteira": "Carteira",
         "dinheiro": "Dinheiro",
         "moto": "Motocicleta",
-        "carro": "Veiculo",
+        "carro": "Veículo",
         "bicicleta": "Bicicleta",
         "notebook": "Notebook",
     }
@@ -133,16 +135,16 @@ def _gerar_bo_local(resumo: str) -> dict[str, Any]:
     local = _inferir_local(resumo)
     pendencias = []
     if not local.get("cidade"):
-        pendencias.append("Cidade nao informada.")
+        pendencias.append("Cidade não informada.")
     if not local.get("endereco"):
-        pendencias.append("Endereco exato nao informado.")
+        pendencias.append("Endereço exato não informado.")
     if "arma" in resumo.lower() and not any(p in resumo.lower() for p in ["calibre", "revolver", "pistola"]):
-        pendencias.append("Caracteristicas da arma nao detalhadas.")
+        pendencias.append("Características da arma não detalhadas.")
 
     bo = {
         "tipo_penal": tipo,
         "artigo_penal": artigo,
-        "data_fato": date.today().isoformat(),
+        "data_fato": None,
         "hora_fato": None,
         **local,
         "narrativa": (
@@ -152,7 +154,7 @@ def _gerar_bo_local(resumo: str) -> dict[str, Any]:
         "partes": [
             {
                 "papel": "vitima",
-                "nome": "Nao informado",
+                "nome": "Não informado",
                 "documento": None,
                 "descricao": "Dados qualificativos pendentes de complementacao.",
             }
@@ -169,7 +171,7 @@ def _gerar_bo_local(resumo: str) -> dict[str, Any]:
                 "thought": "Analisar relato livre e identificar elementos juridicos essenciais.",
                 "action": "gerar_bo_local",
                 "observation": f"Classificacao preliminar: {tipo}.",
-                "final_answer": "BO estruturado com fallback local.",
+                "final_answer": "BO estruturado em modo local de contingencia.",
             }
         ],
     }
@@ -201,15 +203,16 @@ Relato:
         dados["passos"] = [
             {
                 "thought": "Interpretar relato e estruturar campos do BO.",
-                "action": "openai_gerar_bo",
+                "action": "gerar_bo_ia",
                 "observation": "JSON retornado e normalizado.",
                 "final_answer": "BO gerado.",
             }
         ]
         return _normalizar_bo(dados)
-    except Exception as exc:
+    except Exception:
+        logger.exception("Falha na geracao de BO com IA; usando modo local de contingencia.")
         bo = _gerar_bo_local(resumo)
-        bo["pendencias"].append(f"Fallback local usado apos falha da OpenAI: {exc}")
+        bo["pendencias"].append("IA indisponivel no momento. Utilizando modo local de contingencia.")
         return bo
 
 
@@ -264,20 +267,21 @@ def consultar_base(pergunta: str) -> dict[str, Any]:
 
         bos = _filtrar_bos(listar_bos(), pergunta)
         erro = None
-    except Exception as exc:
+    except Exception:
+        logger.exception("Falha ao consultar a base de BOs.")
         bos = []
-        erro = str(exc)
+        erro = True
 
     t = pergunta.lower()
     sql = "SELECT * FROM boletins ORDER BY criado_em DESC;"
     resultados: list[dict[str, Any]]
 
     if "bairro" in t or "top" in t or "perigos" in t:
-        contagem = Counter((bo.get("bairro") or "Nao informado") for bo in bos)
+        contagem = Counter((bo.get("bairro") or "Não informado") for bo in bos)
         resultados = [{"bairro": bairro, "total": total} for bairro, total in contagem.most_common(5)]
         sql = "SELECT bairro, COUNT(*) AS total FROM boletins GROUP BY bairro ORDER BY total DESC LIMIT 5;"
     elif "compare" in t or "compar" in t:
-        contagem = Counter((bo.get("tipo_penal") or "Nao classificado") for bo in bos)
+        contagem = Counter((bo.get("tipo_penal") or "Não informado") for bo in bos)
         resultados = [{"tipo_penal": tipo, "total": total} for tipo, total in contagem.most_common()]
         sql = "SELECT tipo_penal, COUNT(*) AS total FROM boletins GROUP BY tipo_penal ORDER BY total DESC;"
     else:
@@ -285,7 +289,7 @@ def consultar_base(pergunta: str) -> dict[str, Any]:
         sql = "SELECT COUNT(*) AS total FROM boletins;"
 
     if erro:
-        resposta = f"Nao foi possivel conectar ao Supabase. Detalhe: {erro}"
+        resposta = "Base de dados indisponivel no momento. Tente novamente em instantes."
     elif not bos:
         resposta = "Nenhum BO encontrado para os filtros informados."
     elif "bairro" in t or "top" in t or "perigos" in t:
@@ -321,9 +325,10 @@ def gerar_relatorio(cidade: str, periodo: str) -> dict[str, Any]:
 
         bos = listar_bos()
         erro = None
-    except Exception as exc:
+    except Exception:
+        logger.exception("Falha ao carregar BOs para relatorio.")
         bos = []
-        erro = str(exc)
+        erro = True
 
     dias = _dias_periodo(periodo)
     inicio = date.today() - timedelta(days=dias)
@@ -339,12 +344,12 @@ def gerar_relatorio(cidade: str, periodo: str) -> dict[str, Any]:
             pass
         filtrados.append(bo)
 
-    por_tipo = Counter((bo.get("tipo_penal") or "Nao classificado") for bo in filtrados)
-    por_bairro = Counter((bo.get("bairro") or "Nao informado") for bo in filtrados)
+    por_tipo = Counter((bo.get("tipo_penal") or "Não informado") for bo in filtrados)
+    por_bairro = Counter((bo.get("bairro") or "Não informado") for bo in filtrados)
 
-    linhas_tipo = "\n".join(f"| {tipo} | {total} |" for tipo, total in por_tipo.most_common()) or "| Sem dados | 0 |"
-    linhas_bairro = "\n".join(f"| {bairro} | {total} |" for bairro, total in por_bairro.most_common(10)) or "| Sem dados | 0 |"
-    obs = f"\n\n> Aviso: Supabase indisponivel ({erro}). Relatorio gerado sem dados reais." if erro else ""
+    linhas_tipo = "\n".join(f"| {tipo} | {total} |" for tipo, total in por_tipo.most_common()) or "| Não informado | 0 |"
+    linhas_bairro = "\n".join(f"| {bairro} | {total} |" for bairro, total in por_bairro.most_common(10)) or "| Não informado | 0 |"
+    obs = "\n\n> Aviso: base de dados indisponivel. Relatorio gerado sem dados reais." if erro else ""
 
     relatorio = f"""# Relatorio Executivo de Criminalidade
 
@@ -383,7 +388,7 @@ com pendencias para melhorar a qualidade da inteligencia.
             analise = chamar_modelo(prompt)
             relatorio += f"\n## Analise gerada por IA\n\n{analise}\n"
         except Exception:
-            pass
+            logger.exception("Falha ao gerar analise executiva com IA.")
 
     return {
         "relatorio_markdown": relatorio,
