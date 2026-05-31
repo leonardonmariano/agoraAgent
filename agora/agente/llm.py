@@ -3,7 +3,6 @@
 import logging
 import os
 
-import httpx
 from dotenv import load_dotenv
 from openai import OpenAI
 
@@ -43,7 +42,12 @@ def chamar_modelo(
     global _cliente
     if _cliente is None:
         verify_ssl = os.getenv("HTTPX_VERIFY_SSL", "true").lower() not in {"0", "false", "no"}
-        _cliente = OpenAI(api_key=api_key, http_client=httpx.Client(verify=verify_ssl))
+        if verify_ssl:
+            _cliente = OpenAI(api_key=api_key)
+        else:
+            import httpx
+
+            _cliente = OpenAI(api_key=api_key, http_client=httpx.Client(verify=False))
 
     modelo_efetivo = modelo or _MODELO_GERAL
     temperatura_efetiva = temperatura if temperatura is not None else _TEMPERATURA_GERAL

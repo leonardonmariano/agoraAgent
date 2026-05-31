@@ -110,7 +110,7 @@ def db_select_boletins(limite: int = 1000, contar: bool = False) -> dict[str, An
         prefer=prefer,
     )
     count = None
-    content_range = resposta.headers.get("content-range")
+    content_range = resposta.headers.get("content-range") or resposta.headers.get("Content-Range")
     if content_range and "/" in content_range:
         total = content_range.rsplit("/", 1)[-1]
         count = int(total) if total.isdigit() else None
