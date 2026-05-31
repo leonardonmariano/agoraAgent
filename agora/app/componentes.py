@@ -2,7 +2,7 @@
 
 import streamlit as st
 
-from i18n import t
+from app.i18n import t
 
 _ICONE_PAPEL = {
     "vitima": "🧑",

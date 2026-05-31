@@ -1,6 +1,13 @@
 """Interface principal do ÁGORA — entrada do Streamlit."""
 
+import sys
+from pathlib import Path
+
 import streamlit as st
+
+ROOT_DIR = Path(__file__).resolve().parents[1]
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
 
 st.set_page_config(
     page_title="ÁGORA — Segurança Pública",
@@ -9,8 +16,8 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-from componentes import exibir_bo, exibir_passos_agente
-from i18n import t
+from app.componentes import exibir_bo, exibir_passos_agente
+from app.i18n import t
 
 # ── Dados de demonstração ────────────────────────────────────────────────────
 
