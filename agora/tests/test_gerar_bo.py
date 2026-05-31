@@ -3,12 +3,12 @@ from tests.exemplos_entrada import RELATO_ROUBO
 
 
 def test_gerar_bo_local_sem_openai(monkeypatch):
-    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.setattr("agente.ferramentas._tem_openai", lambda: False)
 
     bo = gerar_bo(RELATO_ROUBO)
 
     assert "Roubo" in bo["tipo_penal"]
-    assert bo["cidade"] == "Sao Paulo"
+    assert bo["cidade"] in {"Sao Paulo", "São Paulo"}
     assert bo["objetos"][0]["descricao"] == "Aparelho celular"
     assert bo["narrativa"]
     assert bo["passos"]

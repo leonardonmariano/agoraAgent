@@ -14,15 +14,12 @@ from collections import Counter
 from datetime import date, datetime, timedelta
 from typing import Any
 
-from dotenv import load_dotenv
-
 from agente.llm import chamar_modelo, chamar_modelo_geracao
-
-load_dotenv()
+from config import config
 
 
 def _tem_openai() -> bool:
-    return bool(os.getenv("OPENAI_API_KEY"))
+    return bool(config("OPENAI_API_KEY"))
 
 
 def _extrair_json(texto: str) -> dict[str, Any]:

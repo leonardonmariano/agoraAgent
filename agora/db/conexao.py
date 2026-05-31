@@ -4,7 +4,6 @@ Em producao no Streamlit Cloud, as credenciais podem vir de st.secrets. Em
 desenvolvimento local, elas sao lidas de variaveis de ambiente/.env.
 """
 
-import os
 import json as json_lib
 import ssl
 from typing import Any
@@ -12,31 +11,12 @@ from urllib.error import HTTPError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
-from dotenv import load_dotenv
-
-load_dotenv()
-
-
-def _ler_streamlit_secret(nome: str) -> str:
-    """Le uma chave de st.secrets quando o codigo roda dentro do Streamlit."""
-    try:
-        import streamlit as st
-
-        valor = st.secrets.get(nome)
-        if valor is None and "supabase" in st.secrets:
-            valor = st.secrets["supabase"].get(nome)
-        return str(valor or "")
-    except Exception:
-        return ""
-
-
-def _config(nome: str, padrao: str = "") -> str:
-    return _ler_streamlit_secret(nome) or os.getenv(nome, padrao)
+from config import config
 
 
 def _credenciais() -> tuple[str, str]:
-    url = _config("SUPABASE_URL")
-    key = _config("SUPABASE_KEY")
+    url = config("SUPABASE_URL")
+    key = config("SUPABASE_KEY")
     if not url or not key:
         raise ValueError(
             "SUPABASE_URL e SUPABASE_KEY precisam estar definidos em st.secrets ou no .env"
@@ -71,7 +51,7 @@ def request(
     timeout: int = 20,
 ) -> "RestResponse":
     """Executa uma chamada REST ao Supabase e valida status HTTP."""
-    verify_ssl = _config("HTTPX_VERIFY_SSL", "true").lower() not in {"0", "false", "no"}
+    verify_ssl = config("HTTPX_VERIFY_SSL", "true").lower() not in {"0", "false", "no"}
     url = rest_url(tabela)
     if params:
         url = f"{url}?{urlencode(params)}"

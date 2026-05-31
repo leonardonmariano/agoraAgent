@@ -1,22 +1,14 @@
 """Wrapper centralizado para chamadas a OpenAI."""
 
 import logging
-import os
 
-from dotenv import load_dotenv
 from openai import OpenAI
 
-load_dotenv()
+from config import config
 
 logger = logging.getLogger(__name__)
 
 _cliente: OpenAI | None = None
-
-_MODELO_GERAL = os.getenv("MODELO_GERAL", "gpt-4o-mini")
-_MODELO_GERACAO_BO = os.getenv("MODELO_GERACAO_BO", "gpt-4o")
-_TEMPERATURA_GERAL = float(os.getenv("TEMPERATURA_GERAL", "0.3"))
-_TEMPERATURA_GERACAO = float(os.getenv("TEMPERATURA_GERACAO", "0.4"))
-
 
 def chamar_modelo(
     prompt: str,
@@ -35,22 +27,17 @@ def chamar_modelo(
     Returns:
         Texto gerado pelo modelo.
     """
-    api_key = os.getenv("OPENAI_API_KEY")
+    api_key = config("OPENAI_API_KEY")
     if not api_key:
-        raise ValueError("OPENAI_API_KEY precisa estar definido no .env")
+        raise ValueError("OPENAI_API_KEY precisa estar definido em st.secrets ou no .env")
 
     global _cliente
     if _cliente is None:
-        verify_ssl = os.getenv("HTTPX_VERIFY_SSL", "true").lower() not in {"0", "false", "no"}
-        if verify_ssl:
-            _cliente = OpenAI(api_key=api_key)
-        else:
-            import httpx
+        _cliente = OpenAI(api_key=api_key)
 
-            _cliente = OpenAI(api_key=api_key, http_client=httpx.Client(verify=False))
-
-    modelo_efetivo = modelo or _MODELO_GERAL
-    temperatura_efetiva = temperatura if temperatura is not None else _TEMPERATURA_GERAL
+    modelo_efetivo = modelo or config("MODELO_GERAL", "gpt-4o-mini")
+    temperatura_padrao = float(config("TEMPERATURA_GERAL", "0.3"))
+    temperatura_efetiva = temperatura if temperatura is not None else temperatura_padrao
 
     mensagens = []
     if sistema:
@@ -74,7 +61,7 @@ def chamar_modelo_geracao(prompt: str, sistema: str | None = None) -> str:
     """Atalho para o modelo de geração de BO (maior qualidade)."""
     return chamar_modelo(
         prompt,
-        modelo=_MODELO_GERACAO_BO,
-        temperatura=_TEMPERATURA_GERACAO,
+        modelo=config("MODELO_GERACAO_BO", "gpt-4o"),
+        temperatura=float(config("TEMPERATURA_GERACAO", "0.4")),
         sistema=sistema,
     )
