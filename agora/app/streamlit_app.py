@@ -277,8 +277,12 @@ def _aba_lavrar(idioma: str, mostrar_logs: bool) -> None:
                     mime="application/pdf",
                     use_container_width=True,
                 )
-            except Exception:
-                logger.exception("Falha ao gerar PDF do BO.")
+            except Exception as exc:
+                logger.exception(
+                    "Falha ao gerar PDF do BO para download (%s): %s",
+                    exc.__class__.__name__,
+                    exc,
+                )
                 st.error("Não foi possível gerar o PDF no momento.")
 
 

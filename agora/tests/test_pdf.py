@@ -22,3 +22,32 @@ def test_gerar_pdf_bo_retorna_pdf_valido():
     assert pdf.startswith(b"%PDF")
     assert len(pdf) > 1000
     assert nome_arquivo_pdf(bo) == "bo-20260601-abc123_ocorrencia.pdf"
+
+
+def test_gerar_pdf_bo_aceita_campos_nulos_e_textos_longos():
+    bo = {
+        "numero": None,
+        "tipo_penal": None,
+        "artigo_penal": None,
+        "data_fato": None,
+        "hora_fato": None,
+        "cidade": None,
+        "uf": None,
+        "bairro": None,
+        "narrativa": "Relato com acentuação: vítima, ocorrência, São Paulo. " * 80,
+        "partes": [
+            {
+                "papel": "papel_Vitima",
+                "nome": None,
+                "documento": None,
+                "descricao": "Descrição longa " * 120,
+            }
+        ],
+        "objetos": [{"descricao": None, "status": "status_Subtraído"}],
+        "raciocinio_cot": None,
+    }
+
+    pdf = gerar_pdf_bo(bo)
+
+    assert pdf.startswith(b"%PDF")
+    assert nome_arquivo_pdf(bo) == "boletim_ocorrencia.pdf"

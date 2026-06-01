@@ -1,38 +1,11 @@
-Implemente exportação profissional em PDF para o Boletim de Ocorrência.
+O botão "Baixar PDF" está mostrando "Não foi possível gerar o PDF no momento.".
 
-Requisitos:
+Corrija isso mostrando o erro real nos logs, sem expor para o usuário. Verifique app/pdf.py e o trecho do download_button em app/streamlit_app.py.
 
-1. Adicionar botão "Gerar PDF" ou "Baixar PDF" após a geração do BO.
+Confirme se reportlab está no requirements.txt da raiz e no requirements.txt da pasta agora, se houver os dois.
 
-2. Utilizar reportlab para geração do PDF.
+Gere localmente um PDF de exemplo com um BO real e corrija qualquer erro de ReportLab, acentuação, tabela ou campo nulo.
 
-3. Criar layout profissional contendo:
-
-   - Logo ÁGORA
-   - Título "Boletim de Ocorrência"
-   - Número do BO
-   - Tipo penal
-   - Enquadramento jurídico
-   - Data e hora
-   - Localidade
-
-4. Incluir seção "Narrativa Oficial".
-
-5. Incluir seção "Partes Envolvidas" em formato tabular.
-
-6. Incluir seção "Objetos Envolvidos" em formato tabular.
-
-7. Incluir seção "Análise de Classificação".
-
-8. Adicionar rodapé:
-   "Documento gerado automaticamente pelo sistema ÁGORA."
-
-9. O PDF deve possuir paginação e layout adequado para impressão A4.
-
-10. Disponibilizar download direto pelo Streamlit.
-
-11. Manter compatibilidade com Streamlit Cloud.
-
-12. Adicionar reportlab ao requirements.txt caso necessário.
-
-13. Executar testes após implementação e gerar resumo das alterações.
+Depois execute:
+python -m compileall app agente db tests -q
+python -m pytest -q

@@ -13,15 +13,23 @@ from reportlab.lib.enums import TA_CENTER
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import cm
-from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+from reportlab.platypus import LongTable, Paragraph, SimpleDocTemplate, Spacer, TableStyle
 
 
 NAO_INFORMADO = "Não informado"
+MAX_CARACTERES_CELULA = 900
 
 
 def _texto(valor: Any, padrao: str = NAO_INFORMADO) -> str:
     texto = str(valor or "").strip()
     return texto or padrao
+
+
+def _texto_tabela(valor: Any) -> str:
+    texto = _texto(valor)
+    if len(texto) <= MAX_CARACTERES_CELULA:
+        return texto
+    return texto[:MAX_CARACTERES_CELULA].rstrip() + "..."
 
 
 def _rotulo(valor: Any, prefixo: str = "") -> str:
@@ -130,7 +138,7 @@ def _p(texto: Any, estilo: ParagraphStyle) -> Paragraph:
     return Paragraph(escape(_texto(texto)).replace("\n", "<br/>"), estilo)
 
 
-def _tabela(dados: list[list[Any]], larguras: list[float]) -> Table:
+def _tabela(dados: list[list[Any]], larguras: list[float]) -> LongTable:
     estilo_header = ParagraphStyle(
         name="CelulaHeader",
         fontName="Helvetica-Bold",
@@ -142,9 +150,9 @@ def _tabela(dados: list[list[Any]], larguras: list[float]) -> Table:
     dados_formatados = []
     for linha_idx, linha in enumerate(dados):
         estilo = estilo_header if linha_idx == 0 else estilo_corpo
-        dados_formatados.append([Paragraph(escape(_texto(celula)), estilo) for celula in linha])
+        dados_formatados.append([Paragraph(escape(_texto_tabela(celula)), estilo) for celula in linha])
 
-    tabela = Table(dados_formatados, colWidths=larguras, repeatRows=1)
+    tabela = LongTable(dados_formatados, colWidths=larguras, repeatRows=1, splitByRow=True)
     tabela.setStyle(
         TableStyle(
             [
