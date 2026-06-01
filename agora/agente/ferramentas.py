@@ -18,10 +18,58 @@ from agente.llm import chamar_modelo, chamar_modelo_geracao
 from config import config
 
 logger = logging.getLogger(__name__)
+_openai_config_logada = False
 
 
 def _tem_openai() -> bool:
-    return bool(config("OPENAI_API_KEY"))
+    """Valida a leitura da chave da OpenAI sem expor segredo em logs."""
+    global _openai_config_logada
+
+    api_key = config("OPENAI_API_KEY").strip()
+    if not api_key:
+        if not _openai_config_logada:
+            logger.warning(
+                "OpenAI desativada: OPENAI_API_KEY nao foi encontrada em st.secrets, variaveis de ambiente ou .env."
+            )
+            _openai_config_logada = True
+        return False
+
+    if not api_key.startswith("sk-"):
+        if not _openai_config_logada:
+            logger.warning(
+                "OpenAI desativada: OPENAI_API_KEY foi lida, mas nao parece ter o formato esperado."
+            )
+            _openai_config_logada = True
+        return False
+
+    if not _openai_config_logada:
+        logger.info(
+            "OpenAI configurada: OPENAI_API_KEY lida com sucesso (prefixo=%s..., tamanho=%d).",
+            api_key[:7],
+            len(api_key),
+        )
+        _openai_config_logada = True
+    return True
+
+
+def _motivo_falha_openai(exc: Exception) -> str:
+    """Classifica uma falha da OpenAI em uma mensagem segura para log."""
+    nome = exc.__class__.__name__.lower()
+    status = getattr(exc, "status_code", None)
+
+    if status in {401, 403} or "auth" in nome or "permission" in nome:
+        return "credencial recusada ou sem permissao"
+    if status == 429 or "rate" in nome:
+        return "limite de requisicoes ou cota atingido"
+    if status and 500 <= int(status) <= 599:
+        return "servico da OpenAI indisponivel temporariamente"
+    if "timeout" in nome:
+        return "tempo limite excedido"
+    if "connection" in nome or "network" in nome or "api connection" in nome:
+        return "falha de conectividade com a OpenAI"
+    if "json" in nome:
+        return "resposta da IA nao veio em JSON valido"
+    return "falha nao classificada na chamada da OpenAI"
 
 
 def _extrair_json(texto: str) -> dict[str, Any]:
@@ -209,8 +257,11 @@ Relato:
             }
         ]
         return _normalizar_bo(dados)
-    except Exception:
-        logger.exception("Falha na geracao de BO com IA; usando modo local de contingencia.")
+    except Exception as exc:
+        logger.warning(
+            "Modo local de contingencia ativado na geracao de BO: %s.",
+            _motivo_falha_openai(exc),
+        )
         bo = _gerar_bo_local(resumo)
         bo["pendencias"].append("IA indisponivel no momento. Utilizando modo local de contingencia.")
         return bo
@@ -387,8 +438,11 @@ com pendencias para melhorar a qualidade da inteligencia.
             )
             analise = chamar_modelo(prompt)
             relatorio += f"\n## Analise gerada por IA\n\n{analise}\n"
-        except Exception:
-            logger.exception("Falha ao gerar analise executiva com IA.")
+        except Exception as exc:
+            logger.warning(
+                "Analise executiva por IA ignorada: %s.",
+                _motivo_falha_openai(exc),
+            )
 
     return {
         "relatorio_markdown": relatorio,

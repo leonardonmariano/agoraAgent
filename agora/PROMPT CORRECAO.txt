@@ -1,1 +1,1 @@
-Revise a interface para melhorar textos, alinhamento e consistência visual, sem alterar a lógica do sistema. Mantenha aparência profissional para apresentação acadêmica.
+verifique por que o sistema está entrando em modo local de contingência. Analise a configuração da OpenAI, valide a leitura da OPENAI_API_KEY e mostre nos logs o motivo da falha sem exibir detalhes técnicos para o usuário.
