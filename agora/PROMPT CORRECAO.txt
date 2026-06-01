@@ -1,1 +1,46 @@
-verifique por que o sistema está entrando em modo local de contingência. Analise a configuração da OpenAI, valide a leitura da OPENAI_API_KEY e mostre nos logs o motivo da falha sem exibir detalhes técnicos para o usuário.
+Faça apenas ajustes estéticos e de apresentação na interface, sem alterar a lógica principal do sistema.
+
+1. Corrija rótulos técnicos que aparecem para o usuário:
+   - Trocar "papel_Vitima" por "Vítima"
+   - Trocar "papel_Suspeito" por "Suspeito"
+   - Trocar "status_Subtraído" por "Subtraído"
+   - Remover qualquer prefixo técnico como "papel_" e "status_"
+
+2. Ajuste a exibição de partes envolvidas para ficar mais profissional:
+   - Em vez de "Pessoa | papel_Vitima | Não informado", mostrar algo como:
+     "Pessoa — Vítima"
+     ou
+     "Vítima — Não informado"
+
+3. Ajuste a exibição dos objetos envolvidos:
+   - Mostrar apenas o nome do objeto e o status amigável.
+   - Exemplo:
+     "Aparelho celular Samsung Galaxy S23 — Subtraído"
+
+4. Corrija o card de "Data e hora", pois o texto está sendo cortado.
+   - A data e a hora devem aparecer completas.
+   - Exemplo:
+     "31/05/2026 às 21h30"
+   - Se necessário, troque st.metric por st.markdown/st.info para evitar corte visual.
+   - O mesmo vale para "Localidade", que também está cortando texto longo.
+
+5. Ajuste a sidebar "Última atualização", pois também está cortando a data.
+   - Mostrar em formato curto e legível:
+     "31/05/2026 23:11"
+   - Se st.metric estiver cortando, usar st.caption ou st.markdown.
+
+6. Revise visualmente os cards principais:
+   - Tipo penal
+   - Data e hora
+   - Localidade
+   - Partes envolvidas
+   - Objetos envolvidos
+   - Análise de classificação
+
+7. Não altere regras de classificação, geração de BO, Supabase, OpenAI, salvamento no banco ou lógica de negócio.
+
+8. Após os ajustes, execute:
+   python -m compileall app agente db tests -q
+   python -m pytest -q
+
+9. Gere um resumo final do que foi alterado.

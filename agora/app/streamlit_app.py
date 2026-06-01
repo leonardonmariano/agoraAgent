@@ -186,16 +186,20 @@ def _sidebar() -> tuple[str, bool]:
             total = contar_bos()
             col_a, col_b = st.columns(2)
             with col_a:
-                st.metric(t("total_bos", idioma), total)
+                st.caption(t("total_bos", idioma))
+                st.markdown(f"**{total}**")
             with col_b:
-                st.metric(t("ultima_atualizacao", idioma), _formatar_data_hora(ultima_atualizacao()))
+                st.caption(t("ultima_atualizacao", idioma))
+                st.markdown(f"**{_formatar_data_hora(ultima_atualizacao())}**")
         except Exception:
             logger.exception("Falha ao carregar estatisticas do Supabase.")
             col_a, col_b = st.columns(2)
             with col_a:
-                st.metric(t("total_bos", idioma), "Não informado")
+                st.caption(t("total_bos", idioma))
+                st.markdown("**Não informado**")
             with col_b:
-                st.metric(t("ultima_atualizacao", idioma), "Não informado")
+                st.caption(t("ultima_atualizacao", idioma))
+                st.markdown("**Não informado**")
             st.caption("⚠️ " + t("banco_desconectado", idioma))
 
     return idioma, mostrar_logs
