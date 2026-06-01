@@ -255,15 +255,31 @@ def _aba_lavrar(idioma: str, mostrar_logs: bool) -> None:
                 exibir_passos_agente(st.session_state.get("passos_gerado", []))
 
         st.divider()
-        if st.button(t("btn_salvar_bo", idioma), type="secondary"):
+        col_salvar, col_pdf = st.columns(2)
+        with col_salvar:
+            if st.button(t("btn_salvar_bo", idioma), type="secondary", use_container_width=True):
+                try:
+                    from db.repositorio import salvar_bo
+                    numero = salvar_bo(bo)
+                    st.success(f"{t('bo_salvo', idioma)} — Nº {numero}")
+                    st.session_state.pop("bo_gerado", None)
+                except Exception:
+                    logger.exception("Falha ao salvar BO.")
+                    st.error(t("erro_supabase", idioma))
+        with col_pdf:
             try:
-                from db.repositorio import salvar_bo
-                numero = salvar_bo(bo)
-                st.success(f"{t('bo_salvo', idioma)} — Nº {numero}")
-                st.session_state.pop("bo_gerado", None)
+                from app.pdf import gerar_pdf_bo, nome_arquivo_pdf
+
+                st.download_button(
+                    label="Baixar PDF",
+                    data=gerar_pdf_bo(bo),
+                    file_name=nome_arquivo_pdf(bo),
+                    mime="application/pdf",
+                    use_container_width=True,
+                )
             except Exception:
-                logger.exception("Falha ao salvar BO.")
-                st.error(t("erro_supabase", idioma))
+                logger.exception("Falha ao gerar PDF do BO.")
+                st.error("Não foi possível gerar o PDF no momento.")
 
 
 # ── Aba 2: Consultar ─────────────────────────────────────────────────────────
