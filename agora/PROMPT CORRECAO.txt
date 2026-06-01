@@ -1,11 +1,29 @@
-O botão "Baixar PDF" está mostrando "Não foi possível gerar o PDF no momento.".
+Corrija o erro ao salvar BO no Supabase:
 
-Corrija isso mostrando o erro real nos logs, sem expor para o usuário. Verifique app/pdf.py e o trecho do download_button em app/streamlit_app.py.
+RuntimeError: Supabase 400: date/time field value out of range: "31/05/2026"
 
-Confirme se reportlab está no requirements.txt da raiz e no requirements.txt da pasta agora, se houver os dois.
+O problema é que a IA pode retornar data_fato em formato brasileiro DD/MM/AAAA, mas o Supabase espera ISO YYYY-MM-DD para campo date.
 
-Gere localmente um PDF de exemplo com um BO real e corrija qualquer erro de ReportLab, acentuação, tabela ou campo nulo.
-
-Depois execute:
-python -m compileall app agente db tests -q
-python -m pytest -q
+Requisitos:
+1. Antes de salvar no banco, normalize data_fato para YYYY-MM-DD.
+2. Aceite formatos:
+   - DD/MM/YYYY
+   - DD-MM-YYYY
+   - YYYY-MM-DD
+   - vazio/None
+3. Normalize hora_fato para HH:MM, aceitando:
+   - 21h30
+   - 21:30
+   - 21:30:00
+   - vazio/None
+4. Faça essa normalização em db/repositorio.py ou em uma função utilitária usada por salvar_bo().
+5. Se a data/hora vier inválida, salve None e registre warning no log, sem mostrar erro técnico ao usuário.
+6. Adicione testes cobrindo:
+   - "31/05/2026" -> "2026-05-31"
+   - "31-05-2026" -> "2026-05-31"
+   - "2026-05-31" permanece igual
+   - "21h30" -> "21:30"
+   - "21:30:00" -> "21:30"
+7. Execute:
+   python -m compileall app agente db tests -q
+   python -m pytest -q

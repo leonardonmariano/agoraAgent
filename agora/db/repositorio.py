@@ -3,11 +3,15 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from datetime import date
+from datetime import date, datetime
+import logging
+import re
 from typing import Any
 from uuid import uuid4
 
 from db.conexao import request
+
+logger = logging.getLogger(__name__)
 
 
 def _lista(valor: Any) -> list:
@@ -22,6 +26,49 @@ def _lista(valor: Any) -> list:
 
 def _limpar_dict(dados: dict[str, Any]) -> dict[str, Any]:
     return {chave: valor for chave, valor in dados.items() if valor is not None}
+
+
+def normalizar_data_fato(valor: Any) -> str | None:
+    """Normaliza datas para ISO YYYY-MM-DD antes de salvar no Supabase."""
+    texto = str(valor or "").strip()
+    if not texto:
+        return None
+
+    for formato in ("%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y"):
+        try:
+            return datetime.strptime(texto, formato).date().isoformat()
+        except ValueError:
+            pass
+
+    logger.warning("data_fato invalida recebida para salvar BO; valor ignorado.")
+    return None
+
+
+def normalizar_hora_fato(valor: Any) -> str | None:
+    """Normaliza horas para HH:MM antes de salvar no Supabase."""
+    texto = str(valor or "").strip().lower()
+    if not texto:
+        return None
+
+    match = re.fullmatch(r"(\d{1,2})h(\d{2})", texto)
+    if match:
+        hora, minuto = int(match.group(1)), int(match.group(2))
+        if 0 <= hora <= 23 and 0 <= minuto <= 59:
+            return f"{hora:02d}:{minuto:02d}"
+        logger.warning("hora_fato invalida recebida para salvar BO; valor ignorado.")
+        return None
+
+    match = re.fullmatch(r"(\d{1,2}):(\d{2})(?::(\d{2}))?", texto)
+    if match:
+        hora, minuto = int(match.group(1)), int(match.group(2))
+        segundo = int(match.group(3) or 0)
+        if 0 <= hora <= 23 and 0 <= minuto <= 59 and 0 <= segundo <= 59:
+            return f"{hora:02d}:{minuto:02d}"
+        logger.warning("hora_fato invalida recebida para salvar BO; valor ignorado.")
+        return None
+
+    logger.warning("hora_fato invalida recebida para salvar BO; valor ignorado.")
+    return None
 
 
 def gerar_numero_bo() -> str:
@@ -41,8 +88,8 @@ def salvar_bo(bo: dict[str, Any]) -> str:
             "numero": numero,
             "tipo_penal": bo.get("tipo_penal") or "Nao classificado",
             "artigo_penal": bo.get("artigo_penal"),
-            "data_fato": bo.get("data_fato"),
-            "hora_fato": bo.get("hora_fato"),
+            "data_fato": normalizar_data_fato(bo.get("data_fato")),
+            "hora_fato": normalizar_hora_fato(bo.get("hora_fato")),
             "cidade": bo.get("cidade"),
             "uf": bo.get("uf"),
             "bairro": bo.get("bairro"),
